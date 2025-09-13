@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Tuple
-
+import collections
 from typing_extensions import Protocol
 
 
@@ -101,9 +101,27 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
         Non-constant Variables in topological order starting from the right.
     """
     # BEGIN ASSIGN1_1
-    # TODO
-    
-    raise NotImplementedError("Task Autodiff Not Implemented Yet")
+    visited = set()
+    is_expanded = False
+    stack = collections.deque([(variable, is_expanded)])
+    topo_order = []
+
+    while stack:
+        current, is_expanded = stack.pop()
+        if current.unique_id not in visited:
+            if current.is_constant():
+                continue
+            if current.is_leaf():
+                topo_order.append(current)
+                visited.add(current.unique_id)
+                continue
+            if not is_expanded:
+                stack.append((current, True))
+                stack.extend((parent, False) for parent in current.parents)
+            else:
+                topo_order.append(current)
+                visited.add(current.unique_id)
+    return topo_order[::-1]
     # END ASSIGN1_1
 
 
@@ -119,10 +137,19 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
     # BEGIN ASSIGN1_1
-    # TODO
-   
-    raise NotImplementedError("Task Autodiff Not Implemented Yet")
-    # END ASSIGN1_1
+    top_sort_order = topological_sort(variable)
+    grad = {deriv.unique_id: deriv}
+    for node in top_sort_order:
+        if node.is_leaf():
+            node.accumulate_derivative(grad)
+        else:
+            parent_grads = node.chain_rule(grad.get(node.unique_id))
+            for parent, grad in parent_grads:
+                if parent.unique_id not in grad:
+                    grad[parent.unique_id] = parent.grad
+                else:
+                    grad[parent.unique_id] += grad
+    
 
 
 @dataclass

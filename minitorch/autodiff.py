@@ -117,7 +117,8 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
                 continue
             if not is_expanded:
                 stack.append((current, True))
-                stack.extend((parent, False) for parent in current.parents)
+                current_parents = current.parents[::-1]
+                stack.extend((parent, False) for parent in current_parents)
             else:
                 topo_order.append(current)
                 visited.add(current.unique_id)
@@ -138,17 +139,17 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     """
     # BEGIN ASSIGN1_1
     top_sort_order = topological_sort(variable)
-    grad = {deriv.unique_id: deriv}
+    grad_per_node = {variable.unique_id: deriv}
     for node in top_sort_order:
         if node.is_leaf():
-            node.accumulate_derivative(grad)
+            node.accumulate_derivative(grad_per_node.get(node.unique_id))
         else:
-            parent_grads = node.chain_rule(grad.get(node.unique_id))
-            for parent, grad in parent_grads:
-                if parent.unique_id not in grad:
-                    grad[parent.unique_id] = parent.grad
+            parent_grads = node.chain_rule(grad_per_node.get(node.unique_id))
+            for parent, grad_parent in parent_grads:
+                if parent.unique_id not in grad_per_node:
+                    grad_per_node[parent.unique_id] = grad_parent
                 else:
-                    grad[parent.unique_id] += grad
+                    grad_per_node[parent.unique_id] += grad_parent
     
 
 

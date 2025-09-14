@@ -41,9 +41,10 @@ class Linear(minitorch.Module):
         # 2. Initialize self.bias to be a random parameter of (out_size)
         # 3. Set self.out_size to be out_size
         # HINT: make sure to use the RParam function
-    
-        raise NotImplementedError("Linear not implemented")
-    
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.out_size = out_size
+
         # END ASSIGN1_2
 
     def forward(self, x):
@@ -57,8 +58,22 @@ class Linear(minitorch.Module):
         # 3. Apply Matrix Multiplication on input x and self.weights, and reshape the output to be of size (batch, self.out_size)
         # 4. Add self.bias
         # HINT: You can use the view function of minitorch.tensor for reshape
-
-        raise NotImplementedError("Linear forward not implemented")
+        
+        x = x.view(batch, in_size)
+        weights_reshaped = self.weights.value.view(in_size, self.out_size)
+        #print("weights_reshaped.shape:", weights_reshaped.shape)
+        
+        output = x @ weights_reshaped
+        #print("output.shape after matmul:", output.shape)
+        
+        output = output.view(batch, self.out_size)
+        #print("output.shape after final view:", output.shape)
+        
+        output = output + self.bias.value
+        #print("Final output.shape:", output.shape)
+            
+        
+        return output
     
         # END ASSIGN1_2
         
@@ -90,8 +105,8 @@ class Network(minitorch.Module):
         # BEGIN ASSIGN1_2
         # TODO
         # 1. Construct two linear layers: the first one is embedding_dim * hidden_dim, the second one is hidden_dim * 1
-
-        raise NotImplementedError("Network not implemented")
+        self.linear1 = Linear(embedding_dim, hidden_dim)
+        self.linear2 = Linear(hidden_dim, 1)
         
         # END ASSIGN1_2
         
@@ -110,9 +125,17 @@ class Network(minitorch.Module):
         # 4. Apply the second linear layer
         # 5. Apply sigmoid and reshape to (batch)
         # HINT: You can use minitorch.dropout for dropout, and minitorch.tensor.relu for ReLU
-        
-        raise NotImplementedError("Network forward not implemented")
-    
+        batch, sentence_length, embedding_dim = embeddings.shape
+        x = embeddings.mean(dim=1).view(batch, embedding_dim)
+        output = self.linear1(x)
+        output = output.relu()
+        output = minitorch.dropout(output, self.dropout_prob)
+        output = self.linear2(output)
+        output = output.sigmoid()
+        output = output.view(batch)
+
+        return output
+
         # END ASSIGN1_2
 
 

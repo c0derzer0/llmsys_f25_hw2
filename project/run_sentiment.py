@@ -11,10 +11,10 @@ from datasets import load_dataset
 
 from minitorch import SimpleOps
 from minitorch.cuda_kernel_ops import CudaKernelOps
-BACKEND = minitorch.TensorBackend(SimpleOps)
-CUDA_BACKEND = minitorch.TensorBackend(CudaKernelOps)
+SIMPLE_BACKEND = minitorch.TensorBackend(SimpleOps)
+BACKEND = minitorch.TensorBackend(CudaKernelOps)
 
-BATCH = 10
+BATCH = 32
 
 
 def RParam(*shape):
@@ -202,6 +202,7 @@ class SentenceSentimentTrain:
         n_training_samples = len(X_train)
         #print("parameters", self.model.named_parameters())
         optim = minitorch.Adam(self.model.parameters(), learning_rate)
+
         losses = []
         train_accuracy = []
         validation_accuracy = []
@@ -235,8 +236,23 @@ class SentenceSentimentTrain:
                 out = model(X)
                 loss = cross_entropy_loss(out, y)
                 loss.backward()
-                optim.step()
+                # print(f"Loss value: {loss[0]}")
+                # print(f"Loss requires_grad: {loss.requires_grad()}")
+                # print(f"Loss history: {loss.history}")
 
+                # Check if loss tensor has gradients flowing to it
+                # if hasattr(loss, 'history') and loss.history:
+                #     print("Loss has history - gradients should flow")
+                # else:
+                #     print("Loss has no history - gradients won't flow!")
+                # print("Checking gradients:")
+                # for name, param in self.model.named_parameters():
+                #     if hasattr(param.value, 'grad') and param.value.grad is not None:
+                #         print(f"{name}: grad norm = {param.value.grad.sum()}")
+                #     else:
+                #         print(f"{name}: NO GRADIENT!")
+                optim.step()
+                
 
                 # END ASSIGN1_3
                 
@@ -259,8 +275,8 @@ class SentenceSentimentTrain:
                 # 3. Obtain validation predictions using the get_predictions_array function, and add to the validation_predictions list
                 # 4. Obtain the validation accuracy using the get_accuracy function, and add to the validation_accuracy list
                 
-                X_val = minitorch.tensor(X_val, backend=CUDA_BACKEND)
-                y_val = minitorch.tensor(y_val, backend=CUDA_BACKEND)
+                X_val = minitorch.tensor(X_val, backend=BACKEND)
+                y_val = minitorch.tensor(y_val, backend=BACKEND)
                 out = model(X_val)
                 validation_predictions += get_predictions_array(y_val, out)
                 # END ASSIGN1_3
@@ -337,7 +353,7 @@ def encode_sentiment_data(dataset, pretrained_embeddings, N_train, N_val=0):
 if __name__ == "__main__":
     train_size = 450
     validation_size = 100
-    learning_rate = 0.2
+    learning_rate = 0.05
     max_epochs = 250
     embedding_dim = 50
 

@@ -102,29 +102,38 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     """
     # BEGIN ASSIGN1_1
     visited = set()
-    is_expanded = False
-    stack = collections.deque([(variable, is_expanded)])
-    topo_order = []
+    stack = collections.deque([(variable, False)])
+    order: List[Variable] = []
 
     while stack:
-        current, is_expanded = stack.pop()
-        if current.unique_id not in visited:
-            if current.is_constant():
-                continue
-            if current.is_leaf():
-                topo_order.append(current)
-                visited.add(current.unique_id)
-                continue
-            if not is_expanded:
-                stack.append((current, True))
-                current_parents = current.parents[::-1]
-                stack.extend((parent, False) for parent in current_parents)
-            else:
-                topo_order.append(current)
-                visited.add(current.unique_id)
-    return topo_order[::-1]
-    # END ASSIGN1_1
+        node, expanded = stack.pop()
 
+        # Skip already-processed nodes
+        if node.unique_id in visited:
+            continue
+
+        if node.is_constant():
+            visited.add(node.unique_id)
+            continue
+
+        if node.is_leaf():
+            order.append(node)
+            visited.add(node.unique_id)
+            continue
+
+        if not expanded:
+            # Revisit this node after its parents
+            stack.append((node, True))
+            parents_list = list(node.parents)
+            # Push parents so they are processed before this node
+            # Reverse so the are post order DFS
+            for p in reversed(parents_list):
+                stack.append((p, False))
+        else:
+            order.append(node)
+            visited.add(node.unique_id)
+
+    return order[::-1]
 
 def backpropagate(variable: Variable, deriv: Any) -> None:
     """
@@ -138,20 +147,21 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
     # BEGIN ASSIGN1_1
-    top_sort_order = topological_sort(variable)
-    grad_per_node = {variable.unique_id: deriv}
-    for node in top_sort_order:
-        if node.is_leaf():
-            node.accumulate_derivative(grad_per_node.get(node.unique_id))
-        else:
-            parent_grads = node.chain_rule(grad_per_node.get(node.unique_id))
-            for parent, grad_parent in parent_grads:
-                if parent.unique_id not in grad_per_node:
-                    grad_per_node[parent.unique_id] = grad_parent
-                else:
-                    grad_per_node[parent.unique_id] += grad_parent
-    
+    topo = topological_sort(variable)
+    grad = collections.defaultdict(lambda: 0)
+    grad[variable.unique_id] = deriv
 
+    for node in topo:
+        g = grad.get(node.unique_id)
+        if g is None:
+            continue
+
+        if node.is_leaf():
+            node.accumulate_derivative(g)
+            continue
+
+        for parent, g_parent in node.chain_rule(g):
+            grad[parent.unique_id] += g_parent
 
 @dataclass
 class Context:
